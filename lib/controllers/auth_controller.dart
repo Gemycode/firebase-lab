@@ -29,7 +29,7 @@ class AuthController extends GetxController {
     try {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
       Get.snackbar('Success', 'Login successful!');
-      Get.offAllNamed(AppRoutes.products); // Navigate to products page
+      Get.offAllNamed(AppRoutes.main); // Navigate to main navigation with bottom bar
       return true;
     } on fb_auth.FirebaseAuthException catch (e) {
       String message = 'Login failed';

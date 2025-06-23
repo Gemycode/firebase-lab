@@ -1,35 +1,54 @@
 import 'package:get/get.dart';
-import 'package:dio/dio.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product_model.dart';
 
 class ProductController extends GetxController {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   var products = <Product>[].obs;
   var isLoading = false.obs;
   var selectedProduct = Rxn<Product>();
   
-  final Dio _dio = Dio();
-  final String baseUrl = 'https://dummyjson.com/products';
-
   @override
   void onInit() {
     super.onInit();
     fetchProducts();
   }
 
-  Future<void> fetchProducts() async {
-    try {
-      isLoading.value = true;
-      
-      final response = await _dio.get(baseUrl);
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> productsJson = response.data['products'];
-        products.value = productsJson.map((json) => Product.fromJson(json)).toList();
-      }
-    } catch (e) {
-      Get.snackbar('Error', 'Failed to fetch products: $e');
-    } finally {
+  void fetchProducts() {
+    isLoading.value = true;
+    _firestore.collection('products').snapshots().listen((snapshot) {
+      products.value = snapshot.docs.map((doc) => Product.fromJson(doc.data()..['id'] = doc.id)).toList();
       isLoading.value = false;
+    }, onError: (e) {
+      Get.snackbar('Error', 'Failed to fetch products: $e');
+      isLoading.value = false;
+    });
+  }
+
+  Future<void> addProduct(Product product) async {
+    try {
+      await _firestore.collection('products').add(product.toJson());
+      Get.snackbar('Success', 'Product added successfully');
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to add product: $e');
+    }
+  }
+
+  Future<void> updateProduct(String id, Product product) async {
+    try {
+      await _firestore.collection('products').doc(id).update(product.toJson());
+      Get.snackbar('Success', 'Product updated successfully');
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to update product: $e');
+    }
+  }
+
+  Future<void> deleteProduct(String id) async {
+    try {
+      await _firestore.collection('products').doc(id).delete();
+      Get.snackbar('Success', 'Product deleted successfully');
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to delete product: $e');
     }
   }
 
@@ -39,7 +58,6 @@ class ProductController extends GetxController {
 
   List<Product> searchProducts(String query) {
     if (query.isEmpty) return products;
-    
     return products.where((product) =>
       product.title.toLowerCase().contains(query.toLowerCase()) ||
       product.category.toLowerCase().contains(query.toLowerCase())
